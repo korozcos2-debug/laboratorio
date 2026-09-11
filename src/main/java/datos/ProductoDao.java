@@ -8,119 +8,132 @@ import java.util.Optional;
 
 public class ProductoDao {
 
-    public boolean crear(Producto p) {
-        if (p.getNombre() == null || p.getNombre().trim().isEmpty() ||
-            p.getCategoria() == null || p.getCategoria().trim().isEmpty() ||
-            p.getPrecio() <= 0 || p.getStock() < 0) {
-            System.err.println("Error de validación: Revise que el nombre/categoría no estén vacíos, precio > 0 y stock >= 0.");
+    public boolean crear(Producto prod) {
+        if (prod.getNombre() == null || prod.getNombre().trim().isEmpty() ||
+            prod.getCategoria() == null || prod.getCategoria().trim().isEmpty() ||
+            prod.getPrecio() <= 0 || prod.getStock() < 0) {
+            System.err.println("Validación fallida: Verifique que los campos no estén vacíos, precio > 0 y stock >= 0.");
             return false;
         }
 
-        String sql = "INSERT INTO productos (nombre, categoria, precio, stock) VALUES (?, ?, ?, ?)";
+        String queryInsert = "INSERT INTO productos (nombre, categoria, precio, stock) VALUES (?, ?, ?, ?)";
         
-        try (Connection conn = Conexion.obtenerConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conexion = null;
+        PreparedStatement ps = null;
+
+        try {
+            conexion = Conexion.obtenerConexion();
+            ps = conexion.prepareStatement(queryInsert);
             
-            pstmt.setString(1, p.getNombre());
-            pstmt.setString(2, p.getCategoria());
-            pstmt.setDouble(3, p.getPrecio());
-            pstmt.setInt(4, p.getStock());
+            ps.setString(1, prod.getNombre());
+            ps.setString(2, prod.getCategoria());
+            ps.setDouble(3, prod.getPrecio());
+            ps.setInt(4, prod.getStock());
             
-            return pstmt.executeUpdate() > 0;
+            return ps.executeUpdate() > 0;
             
-        } catch (SQLException e) {
-            System.err.println("No se pudo crear el producto: " + e.getMessage());
+        } catch (SQLException ex) {
+            System.err.println("Error al insertar el producto: " + ex.getMessage());
             return false;
+        } finally {
+            try {
+                if (ps != null) ps.close();
+                if (conexion != null) conexion.close();
+            } catch (SQLException ex) {
+                System.err.println("Error al cerrar recursos: " + ex.getMessage());
+            }
         }
     }
 
     public List<Producto> listar() {
-        List<Producto> productos = new ArrayList<>();
-        String sql = "SELECT id, nombre, categoria, precio, stock FROM productos";
+        List<Producto> resultado = new ArrayList<>();
+        String querySelect = "SELECT id, nombre, categoria, precio, stock FROM productos";
 
-        try (Connection conn = Conexion.obtenerConexion();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (Connection conexion = Conexion.obtenerConexion();
+             Statement stmt = conexion.createStatement();
+             ResultSet rs = stmt.executeQuery(querySelect)) {
 
             while (rs.next()) {
-                productos.add(new Producto(
+                Producto item = new Producto(
                     rs.getInt("id"),
                     rs.getString("nombre"),
                     rs.getString("categoria"),
                     rs.getDouble("precio"),
                     rs.getInt("stock")
-                ));
+                );
+                resultado.add(item);
             }
-        } catch (SQLException e) {
-            System.err.println("Error al listar productos: " + e.getMessage());
+        } catch (SQLException ex) {
+            System.err.println("Error al consultar la lista de productos: " + ex.getMessage());
         }
-        return productos;
+        return resultado;
     }
 
-    public Optional<Producto> buscarPorId(int id) {
-        String sql = "SELECT id, nombre, categoria, precio, stock FROM productos WHERE id = ?";
+    public Optional<Producto> buscarPorId(int identificador) {
+        String queryId = "SELECT id, nombre, categoria, precio, stock FROM productos WHERE id = ?";
 
-        try (Connection conn = Conexion.obtenerConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conexion = Conexion.obtenerConexion();
+             PreparedStatement ps = conexion.prepareStatement(queryId)) {
 
-            pstmt.setInt(1, id);
-            try (ResultSet rs = pstmt.executeQuery()) {
+            ps.setInt(1, identificador);
+            try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(new Producto(
+                    Producto encontrado = new Producto(
                         rs.getInt("id"),
                         rs.getString("nombre"),
                         rs.getString("categoria"),
                         rs.getDouble("precio"),
                         rs.getInt("stock")
-                    ));
+                    );
+                    return Optional.of(encontrado);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("Error al buscar producto: " + e.getMessage());
+        } catch (SQLException ex) {
+            System.err.println("Error al buscar el producto por ID: " + ex.getMessage());
         }
         return Optional.empty();
     }
 
-    public boolean actualizar(Producto p) {
-        if (p.getPrecio() <= 0 || p.getStock() < 0) {
-            System.err.println("Error de validación: El precio debe ser mayor a 0 y el stock no puede ser negativo.");
+    public boolean actualizar(Producto prod) {
+        if (prod.getPrecio() <= 0 || prod.getStock() < 0) {
+            System.err.println("Validación fallida: El precio debe superar 0 y el stock no puede ser menor a 0.");
             return false;
         }
 
-        String sql = "UPDATE productos SET nombre = ?, categoria = ?, precio = ?, stock = ? WHERE id = ?";
+        String queryUpdate = "UPDATE productos SET nombre = ?, categoria = ?, precio = ?, stock = ? WHERE id = ?";
 
-        try (Connection conn = Conexion.obtenerConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conexion = Conexion.obtenerConexion();
+             PreparedStatement ps = conexion.prepareStatement(queryUpdate)) {
 
-            pstmt.setString(1, p.getNombre());
-            pstmt.setString(2, p.getCategoria());
-            pstmt.setDouble(3, p.getPrecio());
-            pstmt.setInt(4, p.getStock());
-            pstmt.setInt(5, p.getId());
+            ps.setString(1, prod.getNombre());
+            ps.setString(2, prod.getCategoria());
+            ps.setDouble(3, prod.getPrecio());
+            ps.setInt(4, prod.getStock());
+            ps.setInt(5, prod.getId());
 
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("No se pudo actualizar el producto: " + e.getMessage());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException ex) {
+            System.err.println("Error al actualizar el registro: " + ex.getMessage());
             return false;
         }
     }
 
-    public boolean eliminar(int id) {
-        String sql = "DELETE FROM productos WHERE id = ?";
+    public boolean eliminar(int identificador) {
+        String queryDelete = "DELETE FROM productos WHERE id = ?";
 
-        try (Connection conn = Conexion.obtenerConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conexion = Conexion.obtenerConexion();
+             PreparedStatement ps = conexion.prepareStatement(queryDelete)) {
 
-            pstmt.setInt(1, id);
-            int filasAfectadas = pstmt.executeUpdate();
+            ps.setInt(1, identificador);
+            int filasModificadas = ps.executeUpdate();
             
-            if (filasAfectadas == 0) {
-                System.out.println("No existe un producto con ese id");
+            if (filasModificadas == 0) {
+                System.out.println("No existe un producto registrado con ese identificador.");
                 return false;
             }
             return true;
-        } catch (SQLException e) {
-            System.err.println("No se pudo eliminar el producto: " + e.getMessage());
+        } catch (SQLException ex) {
+            System.err.println("Error al eliminar el producto: " + ex.getMessage());
             return false;
         }
     }
