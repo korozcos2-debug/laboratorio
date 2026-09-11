@@ -49,10 +49,12 @@ public class Main {
                     case 3:
                         System.out.print("Ingrese ID a buscar: ");
                         int idBuscar = scanner.nextInt();
-                        dao.buscarPorId(idBuscar).ifPresentOrElse(
-                            System.out::println,
-                            () -> System.out.println("No existe un producto con ese id")
-                        );
+                        java.util.Optional<modelo.Producto> prodBuscado = dao.buscarPorId(idBuscar);
+                        if (prodBuscado.isPresent()) {
+                            System.out.println(prodBuscado.get());
+                        } else {
+                            System.out.println("No existe un producto con ese id");
+                        }
                         break;
 
                     case 4:
